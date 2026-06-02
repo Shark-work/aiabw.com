@@ -17,24 +17,9 @@ type NowPaymentsWebhookBody = {
   [key: string]: unknown;
 };
 
-const TERMINAL_SUCCESS_STATUSES = new Set([
-  "finished",
-  "confirmed",
-  "confirmed_finished",
-]);
-
-const TERMINAL_FAILURE_STATUSES = new Set([
-  "failed",
-  "expired",
-  "refunded",
-]);
-
-const IN_PROGRESS_STATUSES = new Set([
-  "sending",
-  "waiting",
-  "confirming",
-  "partially_paid",
-]);
+const TERMINAL_SUCCESS_STATUSES = new Set(["finished", "confirmed", "confirmed_finished"]);
+const TERMINAL_FAILURE_STATUSES = new Set(["failed", "expired", "refunded"]);
+const IN_PROGRESS_STATUSES = new Set(["sending", "waiting", "confirming", "partially_paid"]);
 
 function mapSubscriptionStatus(paymentStatus: string) {
   if (TERMINAL_SUCCESS_STATUSES.has(paymentStatus)) return "active" as const;
@@ -63,8 +48,8 @@ export async function POST(req: Request) {
     const admin = createSupabaseAdminClient();
     const { data: transaction, error: txError } = await admin
       .from("transactions")
-      .select("id, userId, planSlug, paymentStatus, providerPaymentId")
-      .eq("orderId", orderId)
+      .select("id, user_id, plan_slug, payment_status, provider_payment_id")
+      .eq("order_id", orderId)
       .maybeSingle();
 
     if (txError) {
@@ -76,8 +61,8 @@ export async function POST(req: Request) {
     }
 
     const alreadyHandledSameState =
-      transaction.paymentStatus === paymentStatus &&
-      String(transaction.providerPaymentId ?? "") === String(body.payment_id ?? "");
+      transaction.payment_status === paymentStatus &&
+      String(transaction.provider_payment_id ?? "") === String(body.payment_id ?? "");
 
     if (alreadyHandledSameState) {
       return NextResponse.json({ ok: true, skipped: true });
@@ -86,15 +71,15 @@ export async function POST(req: Request) {
     const subscriptionStatus = mapSubscriptionStatus(paymentStatus);
 
     const transactionUpdate: Record<string, unknown> = {
-      paymentStatus,
+      payment_status: paymentStatus,
       raw: body,
-      providerPaymentId: body.payment_id ? String(body.payment_id) : transaction.providerPaymentId,
-      payAmount: body.pay_amount ?? undefined,
-      payCurrency: body.pay_currency ?? undefined,
-      invoiceUrl: body.invoice_url ?? undefined,
+      provider_payment_id: body.payment_id ? String(body.payment_id) : transaction.provider_payment_id,
+      pay_amount: body.pay_amount ?? undefined,
+      pay_currency: body.pay_currency ?? undefined,
+      invoice_url: body.invoice_url ?? undefined,
     };
 
-    const { error: updateError } = await admin.from("transactions").update(transactionUpdate).eq("orderId", orderId);
+    const { error: updateError } = await admin.from("transactions").update(transactionUpdate).eq("order_id", orderId);
     if (updateError) {
       return NextResponse.json({ ok: false, error: updateError.message }, { status: 500 });
     }
@@ -103,7 +88,7 @@ export async function POST(req: Request) {
       const { data: planRow, error: planError } = await admin
         .from("subscription_plans")
         .select("id")
-        .eq("slug", transaction.planSlug)
+        .eq("slug", transaction.plan_slug)
         .maybeSingle();
 
       if (planError) {
@@ -116,19 +101,19 @@ export async function POST(req: Request) {
         currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
 
         const upsertPayload = {
-          userId: transaction.userId,
-          planId: planRow.id,
+          user_id: transaction.user_id,
+          plan_id: planRow.id,
           status: subscriptionStatus,
           provider: "nowpayments",
-          providerSubscriptionId: String(body.payment_id ?? orderId),
-          currentPeriodStart: now.toISOString(),
-          currentPeriodEnd: subscriptionStatus === "active" ? currentPeriodEnd.toISOString() : null,
-          canceledAt: subscriptionStatus === "canceled" ? now.toISOString() : null,
+          provider_subscription_id: String(body.payment_id ?? orderId),
+          current_period_start: now.toISOString(),
+          current_period_end: subscriptionStatus === "active" ? currentPeriodEnd.toISOString() : null,
+          canceled_at: subscriptionStatus === "canceled" ? now.toISOString() : null,
           metadata: body,
         };
 
         const { error: subError } = await admin.from("subscriptions").upsert(upsertPayload, {
-          onConflict: "userId",
+          onConflict: "user_id",
         });
 
         if (subError) {
@@ -139,7 +124,6 @@ export async function POST(req: Request) {
 
     if (IN_PROGRESS_STATUSES.has(paymentStatus)) {
       // Keep transaction as-is; webhook can fire multiple times while the payment is pending.
-      // We still store the latest payload above for observability.
     }
 
     return NextResponse.json({ ok: true });

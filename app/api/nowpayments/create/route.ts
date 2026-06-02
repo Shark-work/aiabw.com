@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
 import { createNowPaymentsPayment } from "@/lib/nowpayments";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -32,14 +31,14 @@ export async function POST(req: Request) {
 
     const admin = createSupabaseAdminClient();
     const { error: insertError } = await admin.from("transactions").insert({
-      userId: user.id,
-      planSlug,
+      user_id: user.id,
+      plan_slug: planSlug,
       provider: "nowpayments",
-      paymentStatus: "pending",
-      priceAmount: plan.priceAmount,
-      priceCurrency: plan.priceCurrency,
-      orderId,
-      orderDescription: plan.description,
+      payment_status: "pending",
+      price_amount: plan.priceAmount,
+      price_currency: plan.priceCurrency,
+      order_id: orderId,
+      order_description: plan.description,
       raw: { source: "api_create", planSlug },
     });
 
@@ -61,14 +60,14 @@ export async function POST(req: Request) {
     const { error: updateError } = await admin
       .from("transactions")
       .update({
-        providerPaymentId: String(payment.payment_id),
-        paymentStatus: payment.payment_status as never,
-        payAmount: payment.pay_amount,
-        payCurrency: payment.pay_currency,
-        invoiceUrl: payment.invoice_url,
+        provider_payment_id: String(payment.payment_id),
+        payment_status: payment.payment_status as never,
+        pay_amount: payment.pay_amount,
+        pay_currency: payment.pay_currency,
+        invoice_url: payment.invoice_url,
         raw: payment as unknown as Record<string, unknown>,
       })
-      .eq("orderId", orderId);
+      .eq("order_id", orderId);
 
     if (updateError) {
       return NextResponse.json({ ok: false, error: updateError.message }, { status: 500 });

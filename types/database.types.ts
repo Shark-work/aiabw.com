@@ -1,0 +1,157 @@
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
+export type Database = {
+  public: {
+    Tables: {
+      profiles: {
+        Row: {
+          id: string;
+          user_id: string;
+          username: string | null;
+          display_name: string | null;
+          avatar_url: string | null;
+          bio: string | null;
+          website: string | null;
+          role: "user" | "creator" | "moderator" | "admin";
+          language: string;
+          location: string | null;
+          is_creator: boolean;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          username?: string | null;
+          display_name?: string | null;
+          avatar_url?: string | null;
+          bio?: string | null;
+          website?: string | null;
+          role?: "user" | "creator" | "moderator" | "admin";
+          language?: string;
+          location?: string | null;
+          is_creator?: boolean;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
+      };
+      subscription_plans: {
+        Row: {
+          id: string;
+          slug: string;
+          name: string;
+          description: string | null;
+          interval: "month" | "year";
+          price_cents: number;
+          currency: string;
+          features: Json;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          name: string;
+          description?: string | null;
+          interval: "month" | "year";
+          price_cents?: number;
+          currency?: string;
+          features?: Json;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["subscription_plans"]["Insert"]>;
+      };
+      subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          plan_id: string;
+          status: "trialing" | "active" | "past_due" | "canceled" | "incomplete";
+          provider: string | null;
+          provider_customer_id: string | null;
+          provider_subscription_id: string | null;
+          current_period_start: string | null;
+          current_period_end: string | null;
+          cancel_at_period_end: boolean;
+          canceled_at: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          plan_id: string;
+          status?: "trialing" | "active" | "past_due" | "canceled" | "incomplete";
+          provider?: string | null;
+          provider_customer_id?: string | null;
+          provider_subscription_id?: string | null;
+          current_period_start?: string | null;
+          current_period_end?: string | null;
+          cancel_at_period_end?: boolean;
+          canceled_at?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["subscriptions"]["Insert"]>;
+      };
+      transactions: {
+        Row: {
+          id: string;
+          user_id: string;
+          plan_slug: string;
+          provider: string;
+          provider_payment_id: string | null;
+          payment_status: "pending" | "confirming" | "confirmed" | "finished" | "failed" | "refunded" | "expired";
+          price_amount: number;
+          price_currency: string;
+          pay_amount: string | null;
+          pay_currency: string | null;
+          invoice_url: string | null;
+          order_id: string;
+          order_description: string | null;
+          raw: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          plan_slug: string;
+          provider?: string;
+          provider_payment_id?: string | null;
+          payment_status?: "pending" | "confirming" | "confirmed" | "finished" | "failed" | "refunded" | "expired";
+          price_amount: number;
+          price_currency: string;
+          pay_amount?: string | null;
+          pay_currency?: string | null;
+          invoice_url?: string | null;
+          order_id: string;
+          order_description?: string | null;
+          raw?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["transactions"]["Insert"]>;
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: {
+      agent_status: "draft" | "active" | "archived";
+      agent_visibility: "public" | "private" | "unlisted";
+      user_role: "user" | "creator" | "moderator" | "admin";
+      subscription_status: "trialing" | "active" | "past_due" | "canceled" | "incomplete";
+      billing_interval: "month" | "year";
+      payment_status: "pending" | "confirming" | "confirmed" | "finished" | "failed" | "refunded" | "expired";
+    };
+    CompositeTypes: Record<string, never>;
+  };
+};
