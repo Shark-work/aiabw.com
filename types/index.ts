@@ -49,18 +49,19 @@ export type Agent = {
 
 export type Profile = {
   id: UUID;
-  userId: UUID;
+  user_id: UUID;
   username?: string | null;
-  displayName?: string | null;
-  avatarUrl?: string | null;
+  display_name?: string | null;
+  avatar_url?: string | null;
   bio?: string | null;
   website?: string | null;
   role: UserRole;
   language: LanguageCode;
   location?: string | null;
-  isCreator?: boolean;
-  createdAt: ISODateString;
-  updatedAt: ISODateString;
+  is_creator?: boolean;
+  metadata?: Record<string, unknown>;
+  created_at: ISODateString;
+  updated_at: ISODateString;
 };
 
 export type SubscriptionPlan = {
@@ -180,8 +181,8 @@ export type Database = {
       };
       profiles: {
         Row: Profile;
-        Insert: Omit<Profile, "id" | "createdAt" | "updatedAt"> & { id?: UUID; createdAt?: ISODateString; updatedAt?: ISODateString };
-        Update: Partial<Omit<Profile, "id" | "createdAt" | "updatedAt">>;
+        Insert: Omit<Profile, "id" | "created_at" | "updated_at"> & { id?: UUID; created_at?: ISODateString; updated_at?: ISODateString };
+        Update: Partial<Omit<Profile, "id" | "created_at" | "updated_at">>;
       };
       subscription_plans: {
         Row: SubscriptionPlan;

@@ -2,6 +2,13 @@ import { redirect } from "next/navigation";
 import { Coins, Crown, Sparkles, UserCircle2 } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Profile } from "@/types";
+
+type AccountSubscription = {
+  status: string | null;
+  current_period_end: string | null;
+  plan: { name?: string | null; slug?: string | null } | null;
+};
 
 export default async function AccountPage() {
   const supabase = await createSupabaseServerClient();
@@ -12,18 +19,22 @@ export default async function AccountPage() {
     redirect("/auth/login");
   }
 
-  const { data: profile } = await supabase
+  const { data: profileData } = await supabase
     .from("profiles")
     .select("username, display_name, avatar_url, bio, role, language")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const { data: subscription } = await supabase
+  const profile = profileData as Profile | null;
+
+  const { data: subscriptionData } = await supabase
     .from("subscriptions")
     .select("status, current_period_end, plan:subscription_plans(name, slug)")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .maybeSingle();
+
+  const subscription = subscriptionData as AccountSubscription | null;
 
   const displayName = profile?.display_name ?? profile?.username ?? user.email ?? "艾比探索者";
   const avatarUrl = profile?.avatar_url ?? null;
@@ -77,7 +88,7 @@ export default async function AccountPage() {
             </div>
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-4">
               <Crown className="h-4 w-4 text-cyan-300" />
-              <span>套餐：{subscription?.plan ? (subscription.plan as { name?: string }).name ?? "未知" : "暂无"}</span>
+              <span>套餐：{subscription?.plan?.name ?? "暂无"}</span>
             </div>
             <p className="text-xs text-slate-500">TODO: 后续接入 Stripe / Paddle / LemonSqueezy 同步。</p>
           </CardContent>
