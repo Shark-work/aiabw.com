@@ -1,8 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #040816;
+  --foreground: #e8f7ff;
+  --card: rgba(7, 12, 28, 0.72);
+  --card-foreground: #e8f7ff;
+  --muted: rgba(148, 163, 184, 0.18);
+  --muted-foreground: #93a4bf;
+  --border: rgba(0, 245, 255, 0.16);
+  --input: rgba(255, 255, 255, 0.08);
+  --primary: #00f5ff;
+  --primary-foreground: #04111f;
+  --secondary: #a855f7;
+  --secondary-foreground: #ffffff;
+  --accent: #22d3ee;
+  --accent-foreground: #04111f;
+  --ring: #00f5ff;
+  --glow: 0 0 24px rgba(0, 245, 255, 0.22), 0 0 72px rgba(168, 85, 247, 0.12);
 }
 
 @theme inline {
@@ -12,15 +26,78 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
+  min-height: 100vh;
+  margin: 0;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(0, 245, 255, 0.12), transparent 24%),
+    radial-gradient(circle at 82% 20%, rgba(168, 85, 247, 0.12), transparent 26%),
+    radial-gradient(circle at 50% 100%, rgba(34, 211, 238, 0.07), transparent 18%),
+    linear-gradient(180deg, #02040a 0%, #060b18 42%, #02040a 100%);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
 }
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    radial-gradient(rgba(0, 245, 255, 0.06) 1px, transparent 1px);
+  background-size: 28px 28px, 120px 120px;
+  background-position: 0 0, 60px 40px;
+  opacity: 0.18;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.92), transparent 95%);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(0, 245, 255, 0.08), transparent 45%);
+  filter: blur(80px);
+  opacity: 0.5;
+  animation: drift 18s ease-in-out infinite alternate;
+}
+
+::selection {
+  background: rgba(0, 245, 255, 0.28);
+  color: white;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(-2%, -2%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(2%, 2%, 0) scale(1.08);
+  }
+}
+
+.neon-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--glow);
+  backdrop-filter: blur(20px);
+}
+
+/* TODO: Add a dedicated particle canvas layer for hero sections. */
+/* TODO: Add motion-safe variants for reduced motion users. */

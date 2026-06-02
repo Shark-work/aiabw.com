@@ -1,0 +1,7 @@
+## 项目规则 - 艾比世界 AIABW
+- 项目名称：AIABW（艾比世界） - AI Adventures Beyond Worlds
+- 定位：全球最有趣的 AI Agent 游乐场，赛博梦幻、未来感、平行世界主题
+- 风格：深色模式为主，粒子/星空/霓虹光效，高级有趣、不幼稚
+- 技术栈：Next.js 15 App Router + Server Components + Supabase + TypeScript
+- 所有新功能必须先给出实现计划，再写代码
+- 保持代码可扩展，做好类型定义和注释
