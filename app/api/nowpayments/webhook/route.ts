@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { verifyNowPaymentsIpnSignature } from "@/lib/nowpayments";
+import type { Json } from "@/types/database.types";
 
 type NowPaymentsWebhookBody = {
   order_id?: string;
@@ -70,13 +71,13 @@ export async function POST(req: Request) {
 
     const subscriptionStatus = mapSubscriptionStatus(paymentStatus);
 
-    const transactionUpdate: Record<string, unknown> = {
-      payment_status: paymentStatus,
-      raw: body,
+    const transactionUpdate = {
+      payment_status: paymentStatus as "pending" | "confirming" | "confirmed" | "finished" | "failed" | "refunded" | "expired",
+      raw: body as Json,
       provider_payment_id: body.payment_id ? String(body.payment_id) : transaction.provider_payment_id,
-      pay_amount: body.pay_amount ?? undefined,
-      pay_currency: body.pay_currency ?? undefined,
-      invoice_url: body.invoice_url ?? undefined,
+      pay_amount: body.pay_amount ?? null,
+      pay_currency: body.pay_currency ?? null,
+      invoice_url: body.invoice_url ?? null,
     };
 
     const { error: updateError } = await admin.from("transactions").update(transactionUpdate).eq("order_id", orderId);
@@ -109,7 +110,7 @@ export async function POST(req: Request) {
           current_period_start: now.toISOString(),
           current_period_end: subscriptionStatus === "active" ? currentPeriodEnd.toISOString() : null,
           canceled_at: subscriptionStatus === "canceled" ? now.toISOString() : null,
-          metadata: body,
+          metadata: body as Json,
         };
 
         const { error: subError } = await admin.from("subscriptions").upsert(upsertPayload, {

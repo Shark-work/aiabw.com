@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createNowPaymentsPayment } from "@/lib/nowpayments";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import type { Json } from "@/types/database.types";
 
 const PLANS: Record<string, { priceAmount: number; priceCurrency: string; description: string }> = {
   creator: { priceAmount: 19, priceCurrency: "USD", description: "Creator Plan - PlayAgent Sphere" },
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
       price_currency: plan.priceCurrency,
       order_id: orderId,
       order_description: plan.description,
-      raw: { source: "api_create", planSlug },
+      raw: { source: "api_create", planSlug } as Json,
     });
 
     if (insertError) {
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
         pay_amount: payment.pay_amount,
         pay_currency: payment.pay_currency,
         invoice_url: payment.invoice_url,
-        raw: payment as unknown as Record<string, unknown>,
+        raw: payment as unknown as Json,
       })
       .eq("order_id", orderId);
 
