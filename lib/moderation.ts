@@ -1,3 +1,5 @@
+import { QWEN_BASE_URL, QWEN_MODEL_PRO } from "@/lib/llm-tier";
+
 const BLOCKED_PATTERNS = [
   /(?:自杀|自残|杀人|恐怖袭击|制造炸弹|制毒|色情|淫秽|强奸)/i,
   /(?:child\s*sexual|csam|pedophil)/i,
@@ -7,26 +9,42 @@ const BLOCKED_PATTERNS = [
 
 const MAX_MESSAGE_LENGTH = 2000;
 const MAX_AGENT_FIELD_LENGTH = 4000;
+const MODERATION_MAX_RETRIES = 2;
 
-const OPENAI_CATEGORY_LABELS: Record<string, string> = {
+const QWEN_RISK_LABELS: Record<string, string> = {
   sexual: "色情",
-  "sexual/minors": "涉及未成年人",
-  harassment: "骚扰",
-  "harassment/threatening": "威胁骚扰",
-  hate: "仇恨",
-  "hate/threatening": "威胁仇恨",
-  illicit: "违法",
-  "illicit/violent": "暴力违法",
-  "self-harm": "自残",
-  "self-harm/intent": "自残意图",
-  "self-harm/instructions": "自残指导",
   violence: "暴力",
-  "violence/graphic": "血腥暴力",
+  hate: "仇恨",
+  harassment: "骚扰",
+  self_harm: "自残",
+  illicit: "违法",
+  political_entity: "涉政实体",
+  political_figure: "涉政人物",
+  inappropriate_profanity: "攻击辱骂",
+  pornographic_adult: "色情",
+  violent_incidents: "暴力",
+  contraband_drug: "毒品",
 };
 
 export type ModerationResult =
   | { allowed: true }
   | { allowed: false; reason: string; categories?: string[] };
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isDataInspectionFailure(code?: string, message?: string) {
+  const c = (code ?? "").toLowerCase();
+  const m = (message ?? "").toLowerCase();
+  return (
+    c.includes("data_inspection") ||
+    c.includes("datainspection") ||
+    m.includes("inappropriate content") ||
+    m.includes("不符合") ||
+    m.includes("违规")
+  );
+}
 
 export function moderateUserInput(text: string, maxLen = MAX_MESSAGE_LENGTH): ModerationResult {
   const trimmed = text.trim();
@@ -51,24 +69,18 @@ export function moderateUserInput(text: string, maxLen = MAX_MESSAGE_LENGTH): Mo
   return { allowed: true };
 }
 
-type OpenAIModerationResponse = {
-  results?: Array<{
-    flagged?: boolean;
-    categories?: Record<string, boolean>;
-    category_scores?: Record<string, number>;
-  }>;
-  error?: { message?: string };
+type DashScopeModerationError = {
+  error?: { message?: string; code?: string; type?: string };
+  code?: string;
+  message?: string;
 };
 
-function formatFlaggedCategories(categories: Record<string, boolean> | undefined): string[] {
-  if (!categories) return [];
-  return Object.entries(categories)
-    .filter(([, flagged]) => flagged)
-    .map(([key]) => OPENAI_CATEGORY_LABELS[key] ?? key);
-}
-
-export async function moderateWithOpenAI(text: string): Promise<ModerationResult> {
-  const apiKey = process.env.OPENAI_API_KEY;
+/**
+ * 通义千问国际版内容审核：DashScope AI 安全护栏（X-DashScope-DataInspection）
+ * 使用与 Pro 聊天相同的 QWEN_API_KEY
+ */
+export async function moderateWithQwen(text: string): Promise<ModerationResult> {
+  const apiKey = process.env.QWEN_API_KEY?.trim();
   const trimmed = text.trim();
 
   if (!trimmed) {
@@ -79,44 +91,79 @@ export async function moderateWithOpenAI(text: string): Promise<ModerationResult
     return moderateUserInput(trimmed, MAX_AGENT_FIELD_LENGTH);
   }
 
-  const res = await fetch("https://api.openai.com/v1/moderations", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({ input: trimmed }),
-  });
+  const url = `${QWEN_BASE_URL.replace(/\/$/, "")}/chat/completions`;
+  let lastError: string | null = null;
 
-  const json = (await res.json()) as OpenAIModerationResponse;
+  for (let attempt = 0; attempt <= MODERATION_MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          "X-DashScope-DataInspection": JSON.stringify({ input: "cip", output: "none" }),
+        },
+        body: JSON.stringify({
+          model: QWEN_MODEL_PRO,
+          max_tokens: 1,
+          messages: [
+            {
+              role: "system",
+              content: "你是内容安全检测助手。若用户输入合规，仅回复 OK。",
+            },
+            { role: "user", content: trimmed },
+          ],
+        }),
+      });
 
-  if (!res.ok) {
-    return {
-      allowed: false,
-      reason: json.error?.message ?? "内容审核服务暂时不可用，请稍后重试。",
-    };
+      const json = (await res.json()) as DashScopeModerationError;
+
+      if (!res.ok) {
+        const code = json.error?.code ?? json.code;
+        const message = json.error?.message ?? json.message ?? "";
+
+        if (isDataInspectionFailure(code, message)) {
+          return {
+            allowed: false,
+            reason: "内容未通过通义千问安全审核，可能包含色情、暴力、违法或其他违规信息。请修改后重试。",
+            categories: ["内容安全拦截"],
+          };
+        }
+
+        lastError = message || `审核服务错误 ${res.status}`;
+        if (attempt < MODERATION_MAX_RETRIES && (res.status === 429 || res.status >= 500)) {
+          await sleep(600 * (attempt + 1));
+          continue;
+        }
+        return {
+          allowed: false,
+          reason: lastError || "内容审核服务暂时不可用，请稍后重试。",
+        };
+      }
+
+      return { allowed: true };
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : "审核请求失败";
+      if (attempt < MODERATION_MAX_RETRIES) {
+        await sleep(600 * (attempt + 1));
+        continue;
+      }
+    }
   }
 
-  const result = json.results?.[0];
-  if (result?.flagged) {
-    const labels = formatFlaggedCategories(result.categories);
-    return {
-      allowed: false,
-      reason:
-        labels.length > 0
-          ? `内容未通过 OpenAI 安全审核，可能涉及：${labels.join("、")}。请修改后重试。`
-          : "内容未通过 OpenAI 安全审核，可能包含色情、暴力或其他违规信息。",
-      categories: labels,
-    };
-  }
-
-  return { allowed: true };
+  return {
+    allowed: false,
+    reason: lastError ?? "内容审核服务暂时不可用，请稍后重试。",
+  };
 }
+
+/** @deprecated 使用 moderateWithQwen */
+export const moderateWithOpenAI = moderateWithQwen;
 
 export async function moderateTextCombined(text: string, maxLen = MAX_MESSAGE_LENGTH): Promise<ModerationResult> {
   const local = moderateUserInput(text, maxLen);
   if (!local.allowed) return local;
-  return moderateWithOpenAI(text);
+  return moderateWithQwen(text);
 }
 
 export type AgentModerationFields = {
@@ -150,7 +197,7 @@ export async function moderateAgentCreation(
 
   for (const [key, value] of entries) {
     const label = AGENT_FIELD_LABELS[key];
-    const ai = await moderateWithOpenAI(value!);
+    const ai = await moderateWithQwen(value!);
     if (!ai.allowed) {
       return {
         allowed: false,
@@ -166,3 +213,5 @@ export async function moderateAgentCreation(
 export function sanitizeOutput(text: string): string {
   return text.slice(0, 8000);
 }
+
+export { QWEN_RISK_LABELS };

@@ -50,7 +50,7 @@ export function AgentChat({
   const [remaining, setRemaining] = useState(initialRemaining);
   const [limit, setLimit] = useState(initialLimit);
   const [proActive, setProActive] = useState(isPro);
-  const [llmModelLabel, setLlmModelLabel] = useState(isPro ? "Claude Sonnet" : "Claude Haiku");
+  const [llmModelLabel, setLlmModelLabel] = useState(isPro ? "Qwen3.6-Plus" : "DeepSeek V4-Flash");
   const [typingId, setTypingId] = useState<string | null>("welcome");
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -313,7 +313,7 @@ export function AgentChat({
           </div>
 
           <p className="mt-2 text-[11px] text-slate-500">
-            DeepSeek / Claude Haiku 驱动 · 内容经 AI 审核 ·
+            DeepSeek / Qwen 驱动 · 内容经通义千问安全审核 ·
             <Link href="/policies/content" className="text-cyan-400/80 underline">
               《内容政策》
             </Link>

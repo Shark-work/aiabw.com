@@ -127,7 +127,7 @@ export async function POST(req: Request) {
       pillar: categorySlug,
       style,
       created_via: remixSourceSlug ? "user_remix" : "user_create",
-      moderation: "openai_passed",
+      moderation: "qwen_passed",
       tags: [categorySlug],
       pricing_note: formatCreatorShareLabel(),
       ...remixMeta,

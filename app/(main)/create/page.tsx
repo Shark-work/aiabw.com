@@ -131,7 +131,7 @@ function CreateFormInner() {
         <p className="mt-4 max-w-2xl text-slate-300">
           {remixSlug && remixSourceName
             ? `基于「${remixSourceName}」复制而来，修改后审核发布即成为你的 Agent。`
-            : "提交后将经过本地规则 + OpenAI Moderation 审核，拦截色情、暴力等违规内容。通过后保存至 Supabase。"}
+            : "提交后将经过本地规则 + 通义千问内容审核，拦截色情、暴力等违规内容。通过后保存至 Supabase。"}
         </p>
       </section>
 
@@ -249,7 +249,7 @@ function CreateFormInner() {
           <div className="flex items-start gap-3 rounded-2xl border border-cyan-300/20 bg-cyan-400/10 p-4 text-sm text-cyan-50 lg:col-span-2">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
-              创建内容受 OpenAI Moderation 审核。请勿包含色情、暴力、仇恨、违法等内容。详见{" "}
+              创建内容受通义千问内容安全审核。请勿包含色情、暴力、仇恨、违法等内容。详见{" "}
               <Link href="/policies/content" className="underline">
                 内容政策
               </Link>

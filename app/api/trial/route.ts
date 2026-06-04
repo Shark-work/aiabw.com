@@ -232,6 +232,7 @@ export async function POST(req: Request) {
       { role: "user", content: message },
     ];
 
+    // 免费 → DeepSeek V4-Flash；Pro → Qwen3.6-Plus（含自动重试）
     const llm = await callLlmForTier(tier, llmMessages);
     const reply = sanitizeOutput(llm.reply);
 

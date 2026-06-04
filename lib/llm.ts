@@ -1,10 +1,13 @@
 type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
 import {
-  ANTHROPIC_MODEL_FREE,
-  ANTHROPIC_MODEL_PRO,
+  DEEPSEEK_BASE_URL,
+  DEEPSEEK_MODEL_FREE,
+  QWEN_BASE_URL,
+  QWEN_MODEL_PRO,
   type LlmUserTier,
   resolveModelForTier,
+  resolveProviderForTier,
 } from "@/lib/llm-tier";
 
 export type LlmResponse = {
@@ -19,20 +22,78 @@ export type LlmResponse = {
 const DEFAULT_SYSTEM_TAIL =
   "用中文回复，保持角色一致性，语气梦幻赛博。每次回复 2-5 句，适合互动与冒险。";
 
-/** 按用户层级调用 Anthropic：免费 Haiku，Pro Sonnet */
+const MAX_LLM_RETRIES = 2;
+const RETRY_BASE_MS = 800;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableStatus(status: number) {
+  return status === 429 || status >= 500;
+}
+
+function isRetryableError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes("fetch") ||
+    msg.includes("network") ||
+    msg.includes("timeout") ||
+    msg.includes("429") ||
+    msg.includes("502") ||
+    msg.includes("503") ||
+    msg.includes("504")
+  );
+}
+
+async function withLlmRetry<T>(fn: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= MAX_LLM_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt < MAX_LLM_RETRIES && isRetryableError(error)) {
+        await sleep(RETRY_BASE_MS * (attempt + 1));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
+}
+
+/** 按用户层级调用：免费 DeepSeek，Pro 通义千问 */
 export async function callLlmForTier(
   tier: LlmUserTier,
   messages: ChatMessage[]
 ): Promise<LlmResponse> {
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
   const model = resolveModelForTier(tier);
+  const provider = resolveProviderForTier(tier);
 
-  if (!apiKey) {
-    return mockLlmResponse(messages, tier, model);
+  if (provider === "deepseek") {
+    const apiKey = process.env.DEEPSEEK_API_KEY?.trim();
+    if (!apiKey) return mockLlmResponse(messages, tier, model);
+    const started = Date.now();
+    const result = await withLlmRetry(() =>
+      callOpenAICompatible(DEEPSEEK_BASE_URL, apiKey, model, messages, {
+        maxTokens: 1024,
+        provider: "deepseek",
+      })
+    );
+    return { ...result, latencyMs: Date.now() - started };
   }
 
+  const apiKey = process.env.QWEN_API_KEY?.trim();
+  if (!apiKey) return mockLlmResponse(messages, tier, model);
   const started = Date.now();
-  const result = await callAnthropic(messages, apiKey, model);
+  const result = await withLlmRetry(() =>
+    callOpenAICompatible(QWEN_BASE_URL, apiKey, model, messages, {
+      maxTokens: 1536,
+      provider: "qwen",
+    })
+  );
   return { ...result, latencyMs: Date.now() - started };
 }
 
@@ -56,9 +117,10 @@ export function buildAgentSystemPrompt(agent: {
 
 function mockLlmResponse(messages: ChatMessage[], tier: LlmUserTier, model: string): LlmResponse {
   const lastUser = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
-  const label = tier === "pro" ? "Sonnet" : "Haiku";
+  const label = tier === "pro" ? "Qwen3.6-Plus" : "DeepSeek V4-Flash";
+  const envHint = tier === "pro" ? "QWEN_API_KEY" : "DEEPSEEK_API_KEY";
   return {
-    reply: `（演示模式 · 请配置 ANTHROPIC_API_KEY · ${label}）\n\n收到：「${lastUser.slice(0, 80)}」\n\n${DEFAULT_SYSTEM_TAIL}`,
+    reply: `（演示模式 · 请配置 ${envHint} · ${label}）\n\n收到：「${lastUser.slice(0, 80)}」\n\n${DEFAULT_SYSTEM_TAIL}`,
     provider: "mock",
     model,
     promptTokens: 0,
@@ -67,50 +129,64 @@ function mockLlmResponse(messages: ChatMessage[], tier: LlmUserTier, model: stri
   };
 }
 
-async function callAnthropic(
-  messages: ChatMessage[],
+type OpenAIChatResponse = {
+  choices?: Array<{ message?: { content?: string } }>;
+  usage?: { prompt_tokens?: number; completion_tokens?: number };
+  error?: { message?: string; code?: string };
+};
+
+async function callOpenAICompatible(
+  baseUrl: string,
   apiKey: string,
-  model: string
+  model: string,
+  messages: ChatMessage[],
+  options: { maxTokens: number; provider: string; extraHeaders?: Record<string, string> }
 ): Promise<LlmResponse> {
-  const system = messages.find((m) => m.role === "system")?.content ?? "";
-  const chatMessages = messages.filter((m) => m.role !== "system");
-  const maxTokens = model.includes("sonnet") ? 1536 : 1024;
+  const url = `${baseUrl.replace(/\/$/, "")}/chat/completions`;
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= MAX_LLM_RETRIES; attempt++) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        ...options.extraHeaders,
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: options.maxTokens,
+        temperature: 0.7,
+        messages: messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+      }),
+    });
+
+    const json = (await res.json()) as OpenAIChatResponse;
+
+    if (!res.ok) {
+      const message = json.error?.message ?? `${options.provider} error ${res.status}`;
+      lastError = new Error(message);
+      if (attempt < MAX_LLM_RETRIES && isRetryableStatus(res.status)) {
+        await sleep(RETRY_BASE_MS * (attempt + 1));
+        continue;
+      }
+      throw lastError;
+    }
+
+    return {
+      reply: json.choices?.[0]?.message?.content?.trim() ?? "…",
+      provider: options.provider,
       model,
-      max_tokens: maxTokens,
-      system,
-      messages: chatMessages.map((m) => ({
-        role: m.role === "assistant" ? "assistant" : "user",
-        content: m.content,
-      })),
-    }),
-  });
-
-  const json = (await res.json()) as {
-    content?: Array<{ text?: string }>;
-    usage?: { input_tokens?: number; output_tokens?: number };
-    error?: { message?: string };
-  };
-
-  if (!res.ok) {
-    throw new Error(json.error?.message ?? `Anthropic error ${res.status}`);
+      promptTokens: json.usage?.prompt_tokens,
+      completionTokens: json.usage?.completion_tokens,
+    };
   }
 
-  return {
-    reply: json.content?.[0]?.text?.trim() ?? "…",
-    provider: "anthropic",
-    model,
-    promptTokens: json.usage?.input_tokens,
-    completionTokens: json.usage?.output_tokens,
-  };
+  throw lastError ?? new Error(`${options.provider} request failed`);
 }
 
-export { ANTHROPIC_MODEL_FREE, ANTHROPIC_MODEL_PRO };
+export { DEEPSEEK_MODEL_FREE, QWEN_MODEL_PRO };

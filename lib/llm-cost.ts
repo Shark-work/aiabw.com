@@ -56,7 +56,7 @@ export async function checkDailyLlmLimits(
       reason:
         tier === "pro"
           ? `Pro 用户每日对话上限 ${callCap} 次，请明日再试。`
-          : `免费用户每日 ${callCap} 次试用已用完，升级 Pro 解锁 Sonnet 与更高额度。`,
+          : `免费用户每日 ${callCap} 次试用已用完，升级 Pro 解锁 Qwen3.6-Plus 与更高额度。`,
     };
   }
 
