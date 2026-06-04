@@ -2,11 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { ArrowRight, ShieldCheck, WalletCards } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowRight, BadgeCheck, ShieldCheck, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { PRO_PLANS, type ProPlanSlug } from "@/lib/products";
+import { PRO_BENEFITS } from "@/lib/pro-subscription";
+import { getStoredReferralCode } from "@/components/growth/ReferralCapture";
 
 const paymentMethods = [
   { id: "usdttrc20", label: "USDT (TRC20)" },
@@ -15,22 +18,28 @@ const paymentMethods = [
   { id: "usdcerc20", label: "USDC (ERC20)" },
 ] as const;
 
-const plans = {
-  creator: { slug: "creator", name: "Creator Plan", price: "$19", priceAmount: 19, interval: "Monthly" },
-  universe: { slug: "universe", name: "Universe Plan", price: "$49", priceAmount: 49, interval: "Monthly" },
-  explorer: { slug: "explorer", name: "Explorer Plan", price: "$0", priceAmount: 0, interval: "Free" },
-} as const;
+const PRO_SLUGS: ProPlanSlug[] = ["pro_monthly", "pro_yearly"];
+
+function resolvePlanFromQuery(raw: string | null): ProPlanSlug {
+  const s = (raw ?? "pro").toLowerCase();
+  if (s === "pro" || s === "monthly" || s === "pro_monthly") return "pro_monthly";
+  if (s === "yearly" || s === "annual" || s === "pro_yearly") return "pro_yearly";
+  if (PRO_SLUGS.includes(s as ProPlanSlug)) return s as ProPlanSlug;
+  return "pro_monthly";
+}
 
 export default function CheckoutClientPage() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const searchParams = useSearchParams();
-  const initialPlan = (searchParams.get("plan") ?? "creator") as keyof typeof plans;
-  const [planSlug, setPlanSlug] = useState<keyof typeof plans>(initialPlan in plans ? initialPlan : "creator");
+  const router = useRouter();
+  const [planSlug, setPlanSlug] = useState<ProPlanSlug>(() => resolvePlanFromQuery(searchParams.get("plan")));
   const [payCurrency, setPayCurrency] = useState<(typeof paymentMethods)[number]["id"]>("usdttrc20");
   const [loading, setLoading] = useState(false);
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  const selectedPlan = PRO_PLANS[planSlug];
+  const paymentStatus = searchParams.get("payment");
 
   useEffect(() => {
     (async () => {
@@ -40,30 +49,29 @@ export default function CheckoutClientPage() {
   }, [supabase]);
 
   useEffect(() => {
-    const qPlan = (searchParams.get("plan") ?? "creator") as keyof typeof plans;
-    if (qPlan in plans) setPlanSlug(qPlan);
+    setPlanSlug(resolvePlanFromQuery(searchParams.get("plan")));
   }, [searchParams]);
-
-  const selectedPlan = plans[planSlug];
 
   const handleCreateOrder = async () => {
     setLoading(true);
     setError(null);
-    setCheckoutUrl(null);
 
     const { data } = await supabase.auth.getUser();
-    const user = data.user;
-
-    if (!user) {
+    if (!data.user) {
       setLoading(false);
-      setError("请先登录后再创建支付订单。点击右上角登录后再回来。");
+      setError("请先登录后再创建支付订单。");
       return;
     }
 
     const res = await fetch("/api/nowpayments/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ planSlug }),
+      body: JSON.stringify({
+        orderType: "subscription",
+        planSlug,
+        payCurrency,
+        referralCode: getStoredReferralCode() ?? undefined,
+      }),
     });
 
     const json = (await res.json()) as { ok: boolean; checkoutUrl?: string; error?: string };
@@ -73,7 +81,6 @@ export default function CheckoutClientPage() {
       return;
     }
 
-    setCheckoutUrl(json.checkoutUrl ?? null);
     setLoading(false);
     if (json.checkoutUrl) window.location.href = json.checkoutUrl;
   };
@@ -85,11 +92,11 @@ export default function CheckoutClientPage() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-100">
               <WalletCards className="h-4 w-4" />
-              Checkout
+              Pro 结账
             </div>
-            <h1 className="mt-4 text-4xl font-semibold text-white sm:text-5xl">解锁宇宙门票</h1>
+            <h1 className="mt-4 text-4xl font-semibold text-white sm:text-5xl">订阅 AIABW Pro</h1>
             <p className="mt-4 max-w-2xl text-slate-300">
-              现在已经接入真实订单创建流程，支持选择套餐与支付方式，并回写到 `transactions` 与 `subscriptions`。
+              通过 NOWPayments 支付 USDT/USDC，Webhook 确认后自动激活订阅与 Pro 权益。
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -107,20 +114,30 @@ export default function CheckoutClientPage() {
         </div>
       </section>
 
+      {paymentStatus === "cancelled" ? (
+        <div className="rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+          支付已取消，可重新选择套餐并创建订单。
+        </div>
+      ) : null}
+
       <section className="grid gap-5 lg:grid-cols-[1fr_0.9fr]">
         <Card className="border-white/10 bg-white/5">
           <CardHeader>
-            <CardDescription>选择套餐</CardDescription>
-            <CardTitle className="text-white">选择你要购买的会员方案</CardTitle>
+            <CardDescription>Pro 套餐</CardDescription>
+            <CardTitle className="text-white">选择订阅周期</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {Object.values(plans).map((plan) => {
-              const active = plan.slug === planSlug;
+            {PRO_SLUGS.map((slug) => {
+              const plan = PRO_PLANS[slug];
+              const active = slug === planSlug;
               return (
                 <button
-                  key={plan.slug}
+                  key={slug}
                   type="button"
-                  onClick={() => setPlanSlug(plan.slug)}
+                  onClick={() => {
+                    setPlanSlug(slug);
+                    router.replace(`/checkout?plan=${slug}`, { scroll: false });
+                  }}
                   className={`w-full rounded-2xl border p-4 text-left transition ${
                     active ? "border-cyan-300/40 bg-cyan-400/10" : "border-white/10 bg-black/20 hover:border-white/20"
                   }`}
@@ -128,9 +145,11 @@ export default function CheckoutClientPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="text-base font-medium text-white">{plan.name}</div>
-                      <div className="text-xs text-slate-400">{plan.interval}</div>
+                      <div className="text-xs text-slate-400">
+                        {slug === "pro_yearly" ? "12 个月" : "1 个月"}
+                      </div>
                     </div>
-                    <div className="text-lg font-semibold text-white">{plan.price}</div>
+                    <div className="text-lg font-semibold text-cyan-200">{plan.displayPrice}</div>
                   </div>
                 </button>
               );
@@ -141,7 +160,7 @@ export default function CheckoutClientPage() {
         <Card className="border-white/10 bg-white/5">
           <CardHeader>
             <CardDescription>支付方式</CardDescription>
-            <CardTitle className="text-white">选择你喜欢的链上支付</CardTitle>
+            <CardTitle className="text-white">链上支付</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {paymentMethods.map((method) => {
@@ -174,48 +193,49 @@ export default function CheckoutClientPage() {
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-slate-300">
             <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 p-4">
-              <span>订阅周期</span>
-              <span className="text-white">{selectedPlan.interval}</span>
-            </div>
-            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 p-4">
               <span>价格</span>
-              <span className="text-white">{selectedPlan.price}</span>
+              <span className="text-lg font-semibold text-white">{selectedPlan.displayPrice}</span>
             </div>
             <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 p-4">
-              <span>币种</span>
+              <span>支付币种</span>
               <span className="text-white">{payCurrency}</span>
             </div>
-            <Button className="w-full" onClick={handleCreateOrder} disabled={loading}>
-              {loading ? "创建中..." : "立即创建支付订单"}
+            <ul className="space-y-2 rounded-2xl border border-white/10 bg-black/20 p-4">
+              {PRO_BENEFITS.map((b) => (
+                <li key={b} className="flex items-center gap-2 text-slate-300">
+                  <BadgeCheck className="h-3.5 w-3.5 text-cyan-300" />
+                  {b}
+                </li>
+              ))}
+            </ul>
+            <Button className="w-full" onClick={() => void handleCreateOrder()} disabled={loading || !isLoggedIn}>
+              {loading ? "创建订单中..." : `支付 ${selectedPlan.priceAmount} USDT`}
             </Button>
             <div className="flex items-start gap-3 rounded-2xl border border-cyan-300/20 bg-cyan-400/10 p-4 text-cyan-50">
-              <ShieldCheck className="mt-0.5 h-4 w-4" />
-              <p>支付完成后会自动更新订阅状态。Webhook 已加入签名校验逻辑。</p>
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>支付成功后订阅状态与到期时间将同步至账户页，Pro 权益即时生效。</p>
             </div>
             {error ? <p className="text-sm text-red-300">{error}</p> : null}
-            {checkoutUrl ? <p className="break-all text-xs text-cyan-200">{checkoutUrl}</p> : null}
           </CardContent>
         </Card>
 
         <Card className="border-white/10 bg-white/5">
           <CardHeader>
-            <CardDescription>快速入口</CardDescription>
-            <CardTitle className="text-white">如果还没登录，先登录再回来</CardTitle>
+            <CardDescription>提示</CardDescription>
+            <CardTitle className="text-white">订阅说明</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-slate-300">
+            <p>路径支持 <code className="text-cyan-200">/checkout?plan=pro</code>（默认月度）或 yearly 年度套餐。</p>
             {!isLoggedIn ? (
               <>
-                <p>当前未登录，所以无法创建订单。先登录后再回来创建支付单。</p>
+                <p>请先登录再创建订单。</p>
                 <Button className="w-full" asChild>
                   <Link href="/auth/login">去登录</Link>
                 </Button>
               </>
             ) : (
-              <p>你已登录，可以直接创建支付订单。</p>
+              <p className="text-emerald-200">已登录，可以发起支付。</p>
             )}
-            <Button variant="secondary" className="w-full" asChild>
-              <Link href="/pro">返回订阅页</Link>
-            </Button>
           </CardContent>
         </Card>
       </section>

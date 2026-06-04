@@ -6,7 +6,7 @@ const navigation = [
   { href: "/agents", label: "AI Agents" },
   { href: "/worlds", label: "世界" },
   { href: "/labs", label: "实验室" },
-  { href: "/pricing", label: "会员" },
+  { href: "/pro", label: "Pro" },
 ];
 
 const adminNavigation = [
