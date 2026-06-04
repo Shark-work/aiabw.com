@@ -9,8 +9,9 @@ import {
   AGENT_PRICE_MIN_USDT,
   formatCreatorShareLabel,
 } from "@/lib/creator-pricing";
-import { Button } from "@/components/ui/button";
+import { Button, GA4_EVENTS } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { trackEvent } from "@/lib/analytics";
 
 const CATEGORIES = [
   { slug: "companion", label: "虚拟伴侣" },
@@ -46,7 +47,6 @@ function CreateFormInner() {
   useEffect(() => {
     if (!remixSlug) return;
 
-    setLoadingRemix(true);
     fetch(`/api/agents/remix?slug=${encodeURIComponent(remixSlug)}`)
       .then((r) => r.json())
       .then(
@@ -80,10 +80,9 @@ function CreateFormInner() {
           } else if (json.error) {
             setError(json.error);
           }
-          setLoadingRemix(false);
         }
       )
-      .catch(() => setLoadingRemix(false));
+      .catch(() => setError("加载 Remix 模板失败"));
   }, [remixSlug]);
 
   const handleSubmit = async (publish: boolean) => {
@@ -113,6 +112,11 @@ function CreateFormInner() {
     }
 
     setSuccess(json.message ?? "创建成功");
+    trackEvent(GA4_EVENTS.CREATE_AGENT, {
+      agent_slug: json.agent?.slug ?? "",
+      published: publish,
+      remix: Boolean(form.remixSourceSlug),
+    });
     if (json.agent?.url) {
       setTimeout(() => router.push(json.agent!.url!), 1200);
     }

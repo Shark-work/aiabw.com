@@ -15,11 +15,15 @@ export function TypewriterText({ text, className, speed = 18, onComplete }: Type
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    setDisplayed("");
     setDone(false);
-    if (!text) return;
+    if (!text) {
+      setDisplayed("");
+      return;
+    }
 
-    let index = 0;
+    setDisplayed(text.slice(0, 1));
+
+    let index = 1;
     const timer = window.setInterval(() => {
       index += 1;
       setDisplayed(text.slice(0, index));

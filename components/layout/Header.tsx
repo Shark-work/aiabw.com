@@ -10,10 +10,12 @@ const navigation = [
 ];
 
 const adminNavigation = [
-  { href: "/admin", label: "后台首页" },
-  { href: "/admin/settings", label: "站点配置" },
-  { href: "/admin/plans", label: "套餐管理" },
-  { href: "/admin/transactions", label: "交易管理" },
+  { href: "/admin", label: "仪表盘" },
+  { href: "/admin/users", label: "用户" },
+  { href: "/admin/agents", label: "Agent" },
+  { href: "/admin/orders", label: "订单" },
+  { href: "/admin/moderation", label: "审核" },
+  { href: "/admin/settings", label: "设置" },
 ];
 
 export function Header() {

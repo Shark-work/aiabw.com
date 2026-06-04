@@ -48,6 +48,8 @@
   13. `supabase/migration_social.sql` — 关注创作者 + 收藏索引
   14. `supabase/migration_email_notifications.sql` — 邮件通知去重 + 召回 RPC
   15. `supabase/migration_llm_usage.sql` — LLM 成本统计与日级防刷
+  16. `supabase/migration_admin_ops.sql` — 运营后台：Agent 审核 / 销量 / 审计日志
+  17. **`supabase/migration_sync_current.sql`** — 幂等同步脚本（补齐遗漏项，推荐每次发版前执行）
 - Seed categories: `companion` 虚拟伴侣 · `story-universe` 故事宇宙 · `adventure` 冒险世界 · `meme` Meme 整活 · `game` 游戏乐园
 - `profiles` has an `admin` role row for your user id
 - `site_settings` table exists and stores:
@@ -56,7 +58,8 @@
   - `default_language`
   - `payment_provider`
   - `ga4_id`
-- `subscription_plans` exists and is seeded with `explorer`, `creator`, `universe`
+  - `creator_share_rate` / `trial_daily_limit` / 邮件模板等（见 migration_admin_ops）
+- `subscription_plans` exists and is seeded with **`pro_monthly`**, **`pro_yearly`**（非旧 slug explorer/creator/universe）
 - `transactions.order_id` is unique
 - `profiles.user_id` is unique
 

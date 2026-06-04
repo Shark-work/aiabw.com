@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Sparkles, TrendingUp, Users } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, GA4_EVENTS } from "@/components/ui/button";
 import { getAgentPriceUsdt } from "@/lib/products";
 
 type HomeStats = {
@@ -72,7 +72,13 @@ export function HomeLiveSection() {
                   <CardContent>
                     <p className="text-sm text-slate-300">{agent.description.slice(0, 60)}…</p>
                     <p className="mt-2 text-xs text-cyan-200">{price <= 0 ? "免费" : `${price} USDT`}</p>
-                    <Button size="sm" className="mt-4" asChild>
+                    <Button
+                      size="sm"
+                      className="mt-4"
+                      asChild
+                      analyticsEvent={GA4_EVENTS.AGENT_CARD_CLICK}
+                      analyticsParams={{ agent_slug: agent.slug, agent_name: agent.name, source: "home" }}
+                    >
                       <Link href={`/agents/${agent.slug}`}>
                         去玩 <ArrowRight className="h-4 w-4" />
                       </Link>

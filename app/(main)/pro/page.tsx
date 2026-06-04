@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BadgeCheck, Crown, Sparkles, Zap } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, GA4_EVENTS } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
@@ -78,7 +78,13 @@ export default async function ProPage() {
                     </li>
                   ))}
                 </ul>
-                <Button className="w-full" variant={index === 1 ? "default" : "secondary"} asChild>
+                <Button
+                  className="w-full"
+                  variant={index === 1 ? "default" : "secondary"}
+                  asChild
+                  analyticsEvent={GA4_EVENTS.SUBSCRIBE_CLICK}
+                  analyticsParams={{ plan_slug: plan.slug, source: "pro_page" }}
+                >
                   <Link href={`/checkout?plan=${plan.slug}`}>
                     订阅 {plan.name} <Zap className="h-4 w-4" />
                   </Link>
@@ -102,7 +108,7 @@ export default async function ProPage() {
             </p>
           </div>
           <div className="flex flex-col justify-center gap-3">
-            <Button className="w-full" asChild>
+            <Button className="w-full" asChild analyticsEvent={GA4_EVENTS.SUBSCRIBE_CLICK} analyticsParams={{ plan_slug: "pro_monthly", source: "pro_cta" }}>
               <Link href="/checkout?plan=pro">立即订阅 Pro（默认月度）</Link>
             </Button>
             {!user ? (

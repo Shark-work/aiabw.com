@@ -273,10 +273,36 @@ export type Database = {
           status: "draft" | "active" | "archived";
           visibility: "public" | "private" | "unlisted";
           created_by: string | null;
+          moderation_status: string;
+          moderation_note: string | null;
+          is_featured: boolean;
+          sales_count: number;
           created_at: string;
           updated_at: string;
         };
         Insert: Record<string, unknown>;
+        Update: Record<string, unknown>;
+        Relationships: [];
+      };
+      admin_audit_log: {
+        Row: {
+          id: string;
+          admin_user_id: string;
+          action: string;
+          target_type: string;
+          target_id: string | null;
+          detail: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          admin_user_id: string;
+          action: string;
+          target_type: string;
+          target_id?: string | null;
+          detail?: Json;
+          created_at?: string;
+        };
         Update: Record<string, unknown>;
         Relationships: [];
       };
@@ -577,7 +603,7 @@ export type Database = {
           inviter_user_id: string | null;
           provider: string;
           provider_payment_id: string | null;
-          payment_status: "pending" | "confirming" | "confirmed" | "finished" | "failed" | "refunded" | "expired";
+          payment_status: "pending" | "confirming" | "confirmed" | "confirmed_finished" | "finished" | "failed" | "refunded" | "expired";
           price_amount: number;
           price_currency: string;
           pay_amount: string | null;

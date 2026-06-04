@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Loader2, ShoppingCart, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, GA4_EVENTS } from "@/components/ui/button";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { trackEvent } from "@/lib/analytics";
 import { getStoredReferralCode } from "@/components/growth/ReferralCapture";
 
 type AgentPurchaseButtonProps = {
@@ -38,6 +39,13 @@ export function AgentPurchaseButton({
 
   const handlePurchase = async () => {
     if (!isLoggedIn) return;
+
+    trackEvent(GA4_EVENTS.PURCHASE_CLICK, {
+      agent_slug: agentSlug,
+      agent_name: agentName,
+      price_usdt: priceUsdt,
+      is_free: isFree,
+    });
 
     setLoading(true);
     setMessage(null);
@@ -75,6 +83,12 @@ export function AgentPurchaseButton({
     }
 
     if (json.free) {
+      trackEvent(GA4_EVENTS.PURCHASE_COMPLETE, {
+        agent_slug: agentSlug,
+        agent_name: agentName,
+        price_usdt: 0,
+        order_type: "agent",
+      });
       setMessage(json.message ?? "已解锁");
       window.location.reload();
       return;

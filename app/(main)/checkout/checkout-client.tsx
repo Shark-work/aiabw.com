@@ -4,12 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, BadgeCheck, ShieldCheck, WalletCards } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, GA4_EVENTS } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { PRO_PLANS, type ProPlanSlug } from "@/lib/products";
 import { PRO_BENEFITS } from "@/lib/pro-subscription";
 import { getStoredReferralCode } from "@/components/growth/ReferralCapture";
+import { trackEvent } from "@/lib/analytics";
 
 const paymentMethods = [
   { id: "usdttrc20", label: "USDT (TRC20)" },
@@ -32,7 +33,7 @@ export default function CheckoutClientPage() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [planSlug, setPlanSlug] = useState<ProPlanSlug>(() => resolvePlanFromQuery(searchParams.get("plan")));
+  const planSlug = resolvePlanFromQuery(searchParams.get("plan"));
   const [payCurrency, setPayCurrency] = useState<(typeof paymentMethods)[number]["id"]>("usdttrc20");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,13 +49,15 @@ export default function CheckoutClientPage() {
     })();
   }, [supabase]);
 
-  useEffect(() => {
-    setPlanSlug(resolvePlanFromQuery(searchParams.get("plan")));
-  }, [searchParams]);
 
   const handleCreateOrder = async () => {
     setLoading(true);
     setError(null);
+
+    trackEvent(GA4_EVENTS.SUBSCRIBE_CLICK, {
+      plan_slug: planSlug,
+      pay_currency: payCurrency,
+    });
 
     const { data } = await supabase.auth.getUser();
     if (!data.user) {
@@ -135,7 +138,6 @@ export default function CheckoutClientPage() {
                   key={slug}
                   type="button"
                   onClick={() => {
-                    setPlanSlug(slug);
                     router.replace(`/checkout?plan=${slug}`, { scroll: false });
                   }}
                   className={`w-full rounded-2xl border p-4 text-left transition ${

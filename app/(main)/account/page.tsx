@@ -10,6 +10,7 @@ import {
   PRO_BENEFITS,
 } from "@/lib/pro-subscription";
 import { AccountInviteSummary } from "@/components/account/AccountInviteSummary";
+import { PaymentSuccessTracker } from "@/components/analytics/PaymentSuccessTracker";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 type PageProps = {
@@ -52,6 +53,7 @@ export default async function AccountPage({ searchParams }: PageProps) {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 py-8">
+      <PaymentSuccessTracker />
       {paymentSuccess ? (
         <div className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
           支付已提交！订阅状态将在链上确认后更新（通常数分钟内）。订单号：{sp.order_id ?? "—"}

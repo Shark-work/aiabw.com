@@ -4,9 +4,10 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { MailCheck, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, GA4_EVENTS } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { trackEvent } from "@/lib/analytics";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,6 +33,7 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
+      trackEvent(GA4_EVENTS.LOGIN, { method: "password" });
       router.push("/account");
       router.refresh();
       return;
@@ -47,6 +49,7 @@ export default function LoginPage() {
     if (error) {
       setError(error.message);
     } else {
+      trackEvent(GA4_EVENTS.LOGIN, { method: "magic_link" });
       setMessage("登录邮件已发送，请查看邮箱点击链接完成登录。请确保 Supabase Redirect URL 已配置到正式域名。");
     }
     setLoading(false);

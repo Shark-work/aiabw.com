@@ -10,6 +10,8 @@
     "test:llm": "node scripts/test-llm.mjs"
   },
   "dependencies": {
+    "@google-analytics/data": "^6.1.0",
+    "@next/third-parties": "^16.2.6",
     "@radix-ui/react-slot": "^1.2.4",
     "@supabase/auth-helpers-nextjs": "^0.14.0",
     "@supabase/ssr": "^0.10.3",
@@ -20,6 +22,7 @@
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "recharts": "^3.8.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"

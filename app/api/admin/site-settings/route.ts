@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { requireAdminApi } from "@/lib/admin-auth";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const defaultSettings = {
   site_name: "AIABW · 艾比世界",
@@ -11,22 +11,7 @@ const defaultSettings = {
 };
 
 async function requireAdmin() {
-  const supabase = await createSupabaseServerClient();
-  const { data: authData } = await supabase.auth.getUser();
-  const user = authData.user;
-  if (!user) return { error: NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 }) };
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if ((profile?.role ?? "user") !== "admin") {
-    return { error: NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 }) };
-  }
-
-  return { user };
+  return requireAdminApi();
 }
 
 export async function GET() {

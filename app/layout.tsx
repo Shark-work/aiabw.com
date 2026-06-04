@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Ga4Root } from "@/components/analytics/Ga4Root";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,14 +29,8 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=G-11LB54EX3D`}
-          strategy="afterInteractive"
-        />
-        <Script id="ga4" strategy="afterInteractive">
-          {`window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-11LB54EX3D');`}
-        </Script>
         {children}
+        <Ga4Root />
       </body>
     </html>
   );

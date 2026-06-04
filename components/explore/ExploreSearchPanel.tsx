@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Dice5, Heart, Search, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, GA4_EVENTS } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EXPLORE_FEATURED_FILTERS, type ExploreFilterId } from "@/lib/explore-filters";
 import type { AgentListItem } from "@/lib/agents";
@@ -210,12 +210,23 @@ export function ExploreSearchPanel({ initialAgents, categories }: ExploreSearchP
                 <p className="line-clamp-3 text-sm leading-6 text-slate-300">{agent.description}</p>
                 <div className="mt-2 text-xs text-cyan-200">{isFree ? "免费" : `${price} USDT`}</div>
                 <div className="mt-4 flex gap-2">
-                  <Button size="sm" asChild>
+                  <Button
+                    size="sm"
+                    asChild
+                    analyticsEvent={GA4_EVENTS.AGENT_CARD_CLICK}
+                    analyticsParams={{ agent_slug: agent.slug, agent_name: agent.name, source: "explore" }}
+                  >
                     <Link href={`/agents/${agent.slug}`}>
                       详情 <ArrowRight className="h-4 w-4" />
                     </Link>
                   </Button>
-                  <Button size="sm" variant="secondary" asChild>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    asChild
+                    analyticsEvent={GA4_EVENTS.AGENT_CARD_CLICK}
+                    analyticsParams={{ agent_slug: agent.slug, agent_name: agent.name, source: "explore_trial" }}
+                  >
                     <Link href={`/agents/${agent.slug}#chat`}>
                       <Heart className="h-4 w-4" /> 试用
                     </Link>
