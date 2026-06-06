@@ -6,17 +6,46 @@ export async function requireAdminApi() {
   const { data: authData } = await supabase.auth.getUser();
   const user = authData.user;
   if (!user) {
-    return { error: NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 }) };
+    return {
+      error: NextResponse.json(
+        { ok: false, error: "Unauthorized", stage: "auth", hint: "No Supabase session found." },
+        { status: 401 }
+      ),
+    };
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role, display_name, username")
     .eq("user_id", user.id)
     .maybeSingle();
 
+  if (profileError) {
+    return {
+      error: NextResponse.json(
+        {
+          ok: false,
+          error: "Profile lookup failed",
+          stage: "db",
+          hint: profileError.message,
+        },
+        { status: 500 }
+      ),
+    };
+  }
+
   if ((profile?.role ?? "user") !== "admin") {
-    return { error: NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 }) };
+    return {
+      error: NextResponse.json(
+        {
+          ok: false,
+          error: "Forbidden",
+          stage: "rbac",
+          hint: "User exists but is not marked as admin in profiles.role.",
+        },
+        { status: 403 }
+      ),
+    };
   }
 
   return { user, profile };

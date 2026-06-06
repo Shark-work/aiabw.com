@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Ga4Root } from "@/components/analytics/Ga4Root";
 import "./globals.css";
 
@@ -33,6 +34,7 @@ export default function RootLayout({
         {children}
         <Ga4Root />
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
