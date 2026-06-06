@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { GrowthProviders } from "@/components/growth/GrowthProviders";
@@ -14,6 +15,11 @@ export default function MainLayout({ children }: { children: ReactNode }) {
       <PageViewTracker />
       <Header />
       <ProPromoStrip />
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-4 pt-3 sm:px-6 lg:px-8">
+        <div className="rounded-2xl border border-cyan-300/15 bg-cyan-400/8 px-4 py-3 text-sm text-cyan-50">
+          如果你发现页面异常，先打开 <Link href="/diagnostics" className="underline">/diagnostics</Link>，它会帮你自动判断是路由、API、登录、环境变量还是数据库问题。
+        </div>
+      </div>
       <main className="relative z-10 mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
         {children}
       </main>
@@ -21,5 +27,3 @@ export default function MainLayout({ children }: { children: ReactNode }) {
     </div>
   );
 }
-
-// TODO: Add route-level ambient animations and section transitions.
