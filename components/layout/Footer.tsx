@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FooterViewCount } from "@/components/layout/FooterViewCount";
+import { CURRENT_SITE_VERSION, SITE_VERSION_HISTORY } from "@/lib/site-version";
 
 const mainLinks = [
   { href: "/about", label: "关于" },
@@ -61,7 +62,17 @@ export function Footer() {
         </div>
 
         <div className="border-t border-white/5 pt-4 text-center text-xs text-slate-600">
-          © {new Date().getFullYear()} AIABW · aiabw.com
+          <div className="flex flex-col items-center gap-2">
+            <div>
+              © {new Date().getFullYear()} AIABW · aiabw.com · 版权所有 · AIABW 艾比世界原创内容受保护
+            </div>
+            <Link
+              href="/version"
+              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-slate-300 transition hover:border-cyan-300/30 hover:bg-cyan-400/10 hover:text-cyan-100"
+            >
+              版本 {CURRENT_SITE_VERSION}
+            </Link>
+          </div>
         </div>
       </div>
     </footer>
