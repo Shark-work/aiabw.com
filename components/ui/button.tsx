@@ -1,7 +1,10 @@
+"use client";
+
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 
 import { cn } from "@/lib/utils";
+import { GA4_EVENTS, trackEvent, type Ga4EventName, type Ga4EventParams } from "@/lib/analytics";
 
 type ButtonVariant = "default" | "secondary" | "ghost" | "outline";
 type ButtonSize = "default" | "sm" | "lg" | "icon";
@@ -10,6 +13,9 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   asChild?: boolean;
   variant?: ButtonVariant;
   size?: ButtonSize;
+  /** GA4 事件名（点击时自动上报，仅生产环境） */
+  analyticsEvent?: Ga4EventName | string;
+  analyticsParams?: Ga4EventParams;
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -30,8 +36,28 @@ const sizeClasses: Record<ButtonSize, string> = {
 };
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, asChild = false, variant = "default", size = "default", ...props }, ref) => {
+  (
+    {
+      className,
+      asChild = false,
+      variant = "default",
+      size = "default",
+      analyticsEvent,
+      analyticsParams,
+      onClick,
+      ...props
+    },
+    ref
+  ) => {
     const Comp = asChild ? Slot : "button";
+
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+      if (analyticsEvent) {
+        trackEvent(analyticsEvent, analyticsParams);
+      }
+      onClick?.(event);
+    };
+
     return (
       <Comp
         ref={ref}
@@ -41,6 +67,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           sizeClasses[size],
           className
         )}
+        onClick={handleClick}
         {...props}
       />
     );
@@ -48,4 +75,4 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 Button.displayName = "Button";
 
-export { Button };
+export { Button, GA4_EVENTS };

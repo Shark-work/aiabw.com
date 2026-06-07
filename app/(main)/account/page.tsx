@@ -1,23 +1,28 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Coins, Crown, Sparkles, UserCircle2 } from "lucide-react";
+import { BadgeCheck, Calendar, Coins, Crown, Gift, Receipt, Sparkles, UserCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { formatSubscriptionPeriodEnd, getProSubscriptionSummary, PRO_BENEFITS } from "@/lib/pro-subscription";
+import { AccountInviteSummary } from "@/components/account/AccountInviteSummary";
+import { PaymentSuccessTracker } from "@/components/analytics/PaymentSuccessTracker";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Profile } from "@/types";
 
-type AccountSubscription = {
-  status: string | null;
-  current_period_end: string | null;
-  plan: { name?: string | null; slug?: string | null } | null;
+type PageProps = {
+  searchParams: Promise<{ payment?: string; order_id?: string; plan?: string }>;
 };
 
-export default async function AccountPage() {
+export default async function AccountPage({ searchParams }: PageProps) {
+  const sp = await searchParams;
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.auth.getUser();
   const user = data.user;
 
-  if (!user) {
-    redirect("/auth/login");
-  }
+  if (!user) redirect("/auth/login");
+
+  const admin = createSupabaseAdminClient();
 
   const { data: profileData } = await supabase
     .from("profiles")
@@ -25,22 +30,22 @@ export default async function AccountPage() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const profile = profileData as Profile | null;
-
-  const { data: subscriptionData } = await supabase
-    .from("subscriptions")
-    .select("status, current_period_end, plan:subscription_plans(name, slug)")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .maybeSingle();
-
-  const subscription = subscriptionData as AccountSubscription | null;
+  const profile = (profileData as Profile | null) ?? null;
+  const subscription = await getProSubscriptionSummary(admin, user.id);
 
   const displayName = profile?.display_name ?? profile?.username ?? user.email ?? "艾比探索者";
   const avatarUrl = profile?.avatar_url ?? null;
+  const paymentSuccess = sp.payment === "success";
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 py-8">
+      <PaymentSuccessTracker />
+      {paymentSuccess ? (
+        <div className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+          支付已提交！订阅状态将在链上确认后更新（通常数分钟内）。订单号：{sp.order_id ?? "—"}
+        </div>
+      ) : null}
+
       <section className="neon-card overflow-hidden rounded-[2rem] p-8 lg:p-10">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-5">
@@ -55,7 +60,7 @@ export default async function AccountPage() {
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-100">
                 <Sparkles className="h-3.5 w-3.5" />
-                已登录
+                {subscription.isPro ? "Pro 会员" : "已登录"}
               </div>
               <h1 className="text-3xl font-semibold text-white">{displayName}</h1>
               <p className="text-sm text-slate-300">{user.email}</p>
@@ -76,21 +81,71 @@ export default async function AccountPage() {
       </section>
 
       <section className="grid gap-5 lg:grid-cols-2">
-        <Card className="border-white/10 bg-white/5">
+        <AccountInviteSummary userId={user.id} />
+
+        <Card className={`border-white/10 bg-white/5 ${subscription.isPro ? "ring-1 ring-violet-300/30" : ""}`}>
           <CardHeader>
-            <CardDescription>订阅状态</CardDescription>
-            <CardTitle className="text-white">你的会员宇宙</CardTitle>
+            <CardDescription>Pro 订阅</CardDescription>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <Crown className="h-5 w-5 text-violet-300" />
+              你的会员宇宙
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-slate-300">
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-4">
-              <Coins className="h-4 w-4 text-cyan-300" />
-              <span>状态：{subscription?.status ?? "未订阅"}</span>
+              <Coins className="h-4 w-4 shrink-0 text-cyan-300" />
+              <div>
+                <div className="text-slate-400">订阅状态</div>
+                <div className={subscription.isPro ? "text-emerald-200" : "text-white"}>{subscription.statusLabel}</div>
+              </div>
             </div>
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-4">
-              <Crown className="h-4 w-4 text-cyan-300" />
-              <span>套餐：{subscription?.plan?.name ?? "暂无"}</span>
+              <Crown className="h-4 w-4 shrink-0 text-cyan-300" />
+              <div>
+                <div className="text-slate-400">当前套餐</div>
+                <div className="text-white">{subscription.planName ?? "未订阅 Pro"}</div>
+              </div>
             </div>
-            <p className="text-xs text-slate-500">TODO: 后续接入 Stripe / Paddle / LemonSqueezy 同步。</p>
+            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+              <Calendar className="h-4 w-4 shrink-0 text-cyan-300" />
+              <div>
+                <div className="text-slate-400">到期时间</div>
+                <div className="text-white">{formatSubscriptionPeriodEnd(subscription.periodEnd)}</div>
+              </div>
+            </div>
+
+            {subscription.isPro ? (
+              <ul className="space-y-2 rounded-2xl border border-violet-300/20 bg-violet-400/5 p-4">
+                {PRO_BENEFITS.map((b) => (
+                  <li key={b} className="flex items-center gap-2 text-slate-300">
+                    <BadgeCheck className="h-3.5 w-3.5 text-cyan-300" />
+                    {b}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Button className="w-full" asChild>
+                <Link href="/checkout?plan=pro">升级 Pro · 19.9 USDT/月起</Link>
+              </Button>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" size="sm" asChild>
+                <Link href="/account/invite">
+                  <Gift className="h-4 w-4" />
+                  邀请中心
+                </Link>
+              </Button>
+              <Button variant="secondary" size="sm" asChild>
+                <Link href="/account/orders">
+                  <Receipt className="h-4 w-4" />
+                  订单记录
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/pro">查看 Pro 方案</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -114,16 +169,21 @@ export default async function AccountPage() {
 
       <section className="grid gap-5 lg:grid-cols-3">
         {[
-          ["收藏宇宙", "你标记过的内容与 Agent 会汇聚在这里。"],
-          ["创建记录", "已创建的 Agent、世界观与实验室资产。"],
-          ["安全状态", "账户安全、会话状态与后续权限策略。"],
-        ].map(([title, desc]) => (
+          ["收藏宇宙", "你标记过的 Agent 会汇聚在这里。", "/account/favorites"],
+          ["创建记录", "Pro 会员可无限创建 Agent。", "/create"],
+          ["邀请返利", "好友付费你拿 10% USDT 佣金。", "/account/invite"],
+        ].map(([title, desc, href]) => (
           <Card key={title} className="border-white/10 bg-white/5">
             <CardHeader>
               <CardTitle className="text-white">{title}</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               <p className="text-sm leading-6 text-slate-300">{desc}</p>
+              {href ? (
+                <Button variant="secondary" size="sm" asChild>
+                  <Link href={href}>前往</Link>
+                </Button>
+              ) : null}
             </CardContent>
           </Card>
         ))}
