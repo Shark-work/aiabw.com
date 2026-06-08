@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { FooterViewCount } from "@/components/layout/FooterViewCount";
-import { CURRENT_SITE_VERSION, SITE_VERSION_HISTORY } from "@/lib/site-version";
+import { CURRENT_SITE_VERSION } from "@/lib/site-version";
 
 const mainLinks = [
   { href: "/about", label: "关于" },
   { href: "/explore", label: "探索" },
   { href: "/agents", label: "AI Agents" },
+  { href: "/leaderboard", label: "排行榜" },
+  { href: "/creator", label: "创作者" },
   { href: "/pro", label: "Pro" },
 ];
 
@@ -15,6 +17,8 @@ const legalLinks = [
   { href: "/refund", label: "退款政策" },
   { href: "/policies/content", label: "内容政策" },
 ];
+
+const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "hello@aiabw.com";
 
 export function Footer() {
   return (
@@ -27,6 +31,12 @@ export function Footer() {
               AIABW · 全球最有趣的 AI Agent 游乐场。
             </p>
             <FooterViewCount />
+            <a
+              href={`mailto:${contactEmail}`}
+              className="mt-2 block text-xs text-slate-500 transition hover:text-cyan-200"
+            >
+              联系：{contactEmail}
+            </a>
           </div>
 
           <div className="flex flex-col gap-4 sm:flex-row sm:gap-10">
