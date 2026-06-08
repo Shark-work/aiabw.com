@@ -4,14 +4,26 @@ import { BadgeCheck, Calendar, Coins, Crown, Gift, Receipt, Sparkles, UserCircle
 import { Button } from "@/components/ui/button";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { formatSubscriptionPeriodEnd, getProSubscriptionSummary, PRO_BENEFITS } from "@/lib/pro-subscription";
+import {
+  formatSubscriptionPeriodEnd,
+  getProSubscriptionSummary,
+  PRO_BENEFITS,
+} from "@/lib/pro-subscription";
 import { AccountInviteSummary } from "@/components/account/AccountInviteSummary";
 import { PaymentSuccessTracker } from "@/components/analytics/PaymentSuccessTracker";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Profile } from "@/types";
 
 type PageProps = {
   searchParams: Promise<{ payment?: string; order_id?: string; plan?: string }>;
+};
+
+type AccountProfile = {
+  username: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  role: string | null;
+  language: string | null;
 };
 
 export default async function AccountPage({ searchParams }: PageProps) {
@@ -20,7 +32,9 @@ export default async function AccountPage({ searchParams }: PageProps) {
   const { data } = await supabase.auth.getUser();
   const user = data.user;
 
-  if (!user) redirect("/auth/login");
+  if (!user) {
+    redirect("/auth/login");
+  }
 
   const admin = createSupabaseAdminClient();
 
@@ -30,7 +44,7 @@ export default async function AccountPage({ searchParams }: PageProps) {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const profile = (profileData as Profile | null) ?? null;
+  const profile = (profileData as AccountProfile | null) ?? null;
   const subscription = await getProSubscriptionSummary(admin, user.id);
 
   const displayName = profile?.display_name ?? profile?.username ?? user.email ?? "艾比探索者";
@@ -96,7 +110,9 @@ export default async function AccountPage({ searchParams }: PageProps) {
               <Coins className="h-4 w-4 shrink-0 text-cyan-300" />
               <div>
                 <div className="text-slate-400">订阅状态</div>
-                <div className={subscription.isPro ? "text-emerald-200" : "text-white"}>{subscription.statusLabel}</div>
+                <div className={subscription.isPro ? "text-emerald-200" : "text-white"}>
+                  {subscription.statusLabel}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-4">
