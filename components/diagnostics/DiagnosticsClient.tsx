@@ -212,21 +212,7 @@ export function DiagnosticsClient() {
     };
   }, []);
 
-  const healthData = apiHealth?.json as
-    | {
-        ok?: boolean;
-        runtimeMs?: number;
-        env?: Record<string, boolean>;
-        db?: {
-          profilesCount?: number | null;
-          agentsCount?: number | null;
-          profilesError?: string | null;
-          agentsError?: string | null;
-        };
-        stage?: string;
-        hint?: string;
-      }
-    | null;
+  const healthData = apiHealth;
 
   const report = {
     timestamp: new Date().toISOString(),
