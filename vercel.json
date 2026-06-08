@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/recompute",
-      "schedule": "*/10 * * * *"
+      "schedule": "0 8 * * *"
     },
     {
       "path": "/api/cron/emails",
