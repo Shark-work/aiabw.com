@@ -8,6 +8,21 @@
     },
     "app/api/answer/route.ts": {
       "maxDuration": 10
+    },
+    "app/api/admin/topics/route.ts": {
+      "maxDuration": 10
+    },
+    "app/api/admin/topics/[id]/route.ts": {
+      "maxDuration": 10
+    },
+    "app/api/admin/schedule/route.ts": {
+      "maxDuration": 10
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/daily",
+      "schedule": "0 0 * * *"
+    }
+  ]
 }
