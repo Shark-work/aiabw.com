@@ -1,17 +1,10 @@
-import { kv } from "@vercel/kv";
+import { sql } from "@vercel/postgres";
 import type { DailyPuzzle } from "./types";
 
-const KV_KEY_PREFIX = "daily-puzzle";
-const hasKv = Boolean(
-  process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN,
-);
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
-}
-
-function puzzleKey(date: string) {
-  return `${KV_KEY_PREFIX}:${date}`;
 }
 
 function safeJsonParse<T>(value: string | null): T | null {
@@ -46,9 +39,7 @@ function buildFallbackPuzzle(date: string): DailyPuzzle {
 
 async function generatePuzzleFromAI(date: string): Promise<DailyPuzzle> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) {
-    return buildFallbackPuzzle(date);
-  }
+  if (!apiKey) return buildFallbackPuzzle(date);
 
   const response = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
@@ -75,14 +66,9 @@ async function generatePuzzleFromAI(date: string): Promise<DailyPuzzle> {
     }),
   });
 
-  if (!response.ok) {
-    throw new Error(`DeepSeek request failed: ${response.status}`);
-  }
+  if (!response.ok) throw new Error(`DeepSeek request failed: ${response.status}`);
 
-  const payload = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-
+  const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
   const content = payload.choices?.[0]?.message?.content ?? "";
   const parsed = safeJsonParse<{
     title: string;
@@ -94,14 +80,7 @@ async function generatePuzzleFromAI(date: string): Promise<DailyPuzzle> {
     hint: string;
   }>(content);
 
-  if (!parsed) {
-    throw new Error("DeepSeek returned invalid JSON");
-  }
-
-  const options = parsed.options.slice(0, 4).map((text, index) => ({
-    id: String(index),
-    text,
-  }));
+  if (!parsed) throw new Error("DeepSeek returned invalid JSON");
 
   return {
     id: `daily-${date}`,
@@ -109,7 +88,7 @@ async function generatePuzzleFromAI(date: string): Promise<DailyPuzzle> {
     title: parsed.title,
     story: parsed.story,
     question: parsed.question,
-    options,
+    options: parsed.options.slice(0, 4).map((text, index) => ({ id: String(index), text })),
     correctAnswerIndex: Math.min(Math.max(parsed.correctAnswerIndex, 0), 3),
     knowledgePoint: parsed.knowledgePoint,
     hint: parsed.hint,
@@ -118,28 +97,90 @@ async function generatePuzzleFromAI(date: string): Promise<DailyPuzzle> {
 
 export async function getTodayPuzzle(): Promise<DailyPuzzle> {
   const date = todayKey();
-  const key = puzzleKey(date);
 
-  if (hasKv) {
-    const cached = safeJsonParse<DailyPuzzle>(await kv.get<string>(key));
-    if (cached) return cached;
+  if (!hasDatabaseUrl) {
+    return generatePuzzleFromAI(date).catch(() => buildFallbackPuzzle(date));
   }
 
-  const existing = await generatePuzzleFromAI(date).catch(() => buildFallbackPuzzle(date));
+  const result = await sql<{
+    id: string;
+    quest_date: string;
+    title: string;
+    story: string;
+    question: string;
+    options: unknown;
+    correct_answer_index: number;
+    knowledge_point: string;
+    hint: string;
+  }>`
+    select id, quest_date, title, story, question, options, correct_answer_index, knowledge_point, hint
+    from daily_quests
+    where quest_date = ${date}::date and status = 'published'
+    limit 1;
+  `;
 
-  if (hasKv) {
-    await kv.set(key, JSON.stringify(existing), { ex: 60 * 60 * 24 * 7 });
+  const row = result.rows[0];
+  if (row) {
+    const options = Array.isArray(row.options)
+      ? row.options.map((item, index) => {
+          if (typeof item === "string") return { id: String(index), text: item };
+          if (item && typeof item === "object" && "text" in item) {
+            return { id: String(index), text: String((item as { text: string }).text) };
+          }
+          return { id: String(index), text: String(item) };
+        })
+      : [];
+
+    return {
+      id: row.id,
+      date: row.quest_date,
+      title: row.title,
+      story: row.story,
+      question: row.question,
+      options: options.length ? options : buildFallbackPuzzle(date).options,
+      correctAnswerIndex: row.correct_answer_index,
+      knowledgePoint: row.knowledge_point,
+      hint: row.hint,
+    };
   }
 
-  return existing;
-}
-
-export async function storePuzzle(puzzle: DailyPuzzle) {
-  if (!hasKv) return;
-  await kv.set(puzzleKey(puzzle.date), JSON.stringify(puzzle), { ex: 60 * 60 * 24 * 7 });
+  return generatePuzzleFromAI(date).catch(() => buildFallbackPuzzle(date));
 }
 
 export async function getPuzzleByDate(date: string) {
-  if (!hasKv) return null;
-  return safeJsonParse<DailyPuzzle>(await kv.get<string>(puzzleKey(date)));
+  if (!hasDatabaseUrl) return null;
+
+  const result = await sql<{
+    id: string;
+    quest_date: string;
+    title: string;
+    story: string;
+    question: string;
+    options: unknown;
+    correct_answer_index: number;
+    knowledge_point: string;
+    hint: string;
+  }>`
+    select id, quest_date, title, story, question, options, correct_answer_index, knowledge_point, hint
+    from daily_quests
+    where quest_date = ${date}::date and status = 'published'
+    limit 1;
+  `;
+
+  const row = result.rows[0];
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    date: row.quest_date,
+    title: row.title,
+    story: row.story,
+    question: row.question,
+    options: Array.isArray(row.options)
+      ? row.options.map((item, index) => ({ id: String(index), text: typeof item === "string" ? item : JSON.stringify(item) }))
+      : [],
+    correctAnswerIndex: row.correct_answer_index,
+    knowledgePoint: row.knowledge_point,
+    hint: row.hint,
+  } satisfies DailyPuzzle;
 }

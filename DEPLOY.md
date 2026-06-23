@@ -1,4 +1,4 @@
-# DailyQuest 部署指南（Vercel）
+# DailyQuest 部署指南（Supabase + Vercel）
 
 本文档说明如何把 DailyQuest 从 GitHub 部署到 Vercel，并包含环境变量、Cron Jobs、域名绑定、上线检查清单，以及可直接粘贴到 Vercel 环境变量界面的键值对列表。
 
@@ -50,9 +50,8 @@
 ### 必填
 
 #### `DATABASE_URL`
-- **用途**：数据库连接串。
-- **来源**：Supabase / Vercel Postgres / 其他 Postgres 提供商。
-- **说明**：当前项目的后台题材管理、排期管理、每日题库都依赖数据库。
+- **用途**：Supabase/Postgres 数据库连接串。
+- **说明**：后台题材管理、排期管理、每日题库都依赖数据库。
 
 #### `ADMIN_EMAIL`
 - **用途**：后台管理员邮箱。
@@ -62,23 +61,7 @@
 - **用途**：调用 DeepSeek 生成谜题。
 - **说明**：如果不配置，首页仍可使用本地 fallback 谜题，但正式上线建议配置。
 
-#### `KV_REST_API_URL`
-- **用途**：Vercel KV REST 地址。
-- **说明**：用于保存每日谜题数据。
-
-#### `KV_REST_API_TOKEN`
-- **用途**：Vercel KV 读写令牌。
-- **说明**：用于保存每日谜题数据。
-
 ### 可选
-
-#### `KV_REST_API_READ_ONLY_TOKEN`
-- **用途**：Vercel KV 只读令牌。
-- **说明**：不是当前页面必须，但建议一并保留。
-
-#### `KV_URL`
-- **用途**：部分 KV 连接场景会用到。
-- **说明**：如果 Vercel 自动注入，保持同步即可。
 
 #### `DEEPSEEK_MODEL`
 - **用途**：指定 DeepSeek 模型名。
@@ -90,7 +73,7 @@
 
 ---
 
-## 3. Supabase / Postgres 的 `DATABASE_URL` 获取方式
+## 3. Supabase 的 `DATABASE_URL` 获取方式
 
 如果你使用 Supabase：
 
@@ -220,13 +203,12 @@ postgresql://USER:PASSWORD@HOST:5432/postgres
 - [ ] 题材启用/停用开关正常
 - [ ] 排期选择后可自动保存
 
-### 数据库与 KV
+### 数据库
 - [ ] `topic_categories` 表已创建
 - [ ] `schedule_config` 表已创建
 - [ ] `daily_quests` 表已创建
 - [ ] `users` 表已创建
 - [ ] `user_answers` 表已创建
-- [ ] KV 环境变量已配置并可读写
 
 ---
 
@@ -258,10 +240,6 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/postgres
 ADMIN_EMAIL=admin@yourdomain.com
 DEEPSEEK_API_KEY=your_deepseek_api_key
 DEEPSEEK_MODEL=deepseek-chat
-KV_REST_API_URL=https://your-kv-rest-url
-KV_REST_API_TOKEN=your_kv_rest_api_token
-KV_REST_API_READ_ONLY_TOKEN=your_kv_read_only_token
-KV_URL=your_kv_url
 NEXT_PUBLIC_SITE_URL=https://aiabw.com
 ```
 
@@ -272,10 +250,6 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/postgres
 ADMIN_EMAIL=admin@yourdomain.com
 DEEPSEEK_API_KEY=your_deepseek_api_key
 DEEPSEEK_MODEL=deepseek-chat
-KV_REST_API_URL=https://your-kv-rest-url
-KV_REST_API_TOKEN=your_kv_rest_api_token
-KV_REST_API_READ_ONLY_TOKEN=your_kv_read_only_token
-KV_URL=your_kv_url
 NEXT_PUBLIC_SITE_URL=https://preview-aiabw.vercel.app
 ```
 
@@ -286,10 +260,6 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/postgres
 ADMIN_EMAIL=admin@yourdomain.com
 DEEPSEEK_API_KEY=your_deepseek_api_key
 DEEPSEEK_MODEL=deepseek-chat
-KV_REST_API_URL=https://your-kv-rest-url
-KV_REST_API_TOKEN=your_kv_rest_api_token
-KV_REST_API_READ_ONLY_TOKEN=your_kv_read_only_token
-KV_URL=your_kv_url
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
@@ -297,6 +267,6 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
 ## 9. 备注
 
-- 如果你暂时没有配置 `DEEPSEEK_API_KEY`，项目仍然可以用本地 fallback 正常运行。
-- 如果你暂时没有配置 KV，本地也不会崩，但正式上线建议一定要配置。
+- 如果你暂时没有配置 `DEEPSEEK_API_KEY`，项目仍然可以正常运行。
+- 该版本已经不再依赖 KV，因此项目在没有任何 KV 环境变量的情况下也能正常运行。
 - 如果你暂时没有 Cron Jobs，也不影响首页正常出题，因为项目里已经有兜底逻辑。

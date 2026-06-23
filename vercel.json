@@ -3,6 +3,9 @@
   "installCommand": "npm install",
   "buildCommand": "npm run build",
   "functions": {
+    "app/api/cron/generate/route.ts": {
+      "maxDuration": 10
+    },
     "app/api/daily/route.ts": {
       "maxDuration": 10
     },
@@ -21,7 +24,7 @@
   },
   "crons": [
     {
-      "path": "/api/daily",
+      "path": "/api/cron/generate",
       "schedule": "0 0 * * *"
     }
   ]
