@@ -102,46 +102,50 @@ export async function getTodayPuzzle(): Promise<DailyPuzzle> {
     return generatePuzzleFromAI(date).catch(() => buildFallbackPuzzle(date));
   }
 
-  const result = await sql<{
-    id: string;
-    quest_date: string;
-    title: string;
-    story: string;
-    question: string;
-    options: unknown;
-    correct_answer_index: number;
-    knowledge_point: string;
-    hint: string;
-  }>`
-    select id, quest_date, title, story, question, options, correct_answer_index, knowledge_point, hint
-    from daily_quests
-    where quest_date = ${date}::date and status = 'published'
-    limit 1;
-  `;
+  try {
+    const result = await sql<{
+      id: string;
+      quest_date: string;
+      title: string;
+      story: string;
+      question: string;
+      options: unknown;
+      correct_answer_index: number;
+      knowledge_point: string;
+      hint: string;
+    }>`
+      select id, quest_date, title, story, question, options, correct_answer_index, knowledge_point, hint
+      from daily_quests
+      where quest_date = ${date}::date and status = 'published'
+      limit 1;
+    `;
 
-  const row = result.rows[0];
-  if (row) {
-    const options = Array.isArray(row.options)
-      ? row.options.map((item, index) => {
-          if (typeof item === "string") return { id: String(index), text: item };
-          if (item && typeof item === "object" && "text" in item) {
-            return { id: String(index), text: String((item as { text: string }).text) };
-          }
-          return { id: String(index), text: String(item) };
-        })
-      : [];
+    const row = result.rows[0];
+    if (row) {
+      const options = Array.isArray(row.options)
+        ? row.options.map((item, index) => {
+            if (typeof item === "string") return { id: String(index), text: item };
+            if (item && typeof item === "object" && "text" in item) {
+              return { id: String(index), text: String((item as { text: string }).text) };
+            }
+            return { id: String(index), text: String(item) };
+          })
+        : [];
 
-    return {
-      id: row.id,
-      date: row.quest_date,
-      title: row.title,
-      story: row.story,
-      question: row.question,
-      options: options.length ? options : buildFallbackPuzzle(date).options,
-      correctAnswerIndex: row.correct_answer_index,
-      knowledgePoint: row.knowledge_point,
-      hint: row.hint,
-    };
+      return {
+        id: row.id,
+        date: row.quest_date,
+        title: row.title,
+        story: row.story,
+        question: row.question,
+        options: options.length ? options : buildFallbackPuzzle(date).options,
+        correctAnswerIndex: row.correct_answer_index,
+        knowledgePoint: row.knowledge_point,
+        hint: row.hint,
+      };
+    }
+  } catch {
+    return generatePuzzleFromAI(date).catch(() => buildFallbackPuzzle(date));
   }
 
   return generatePuzzleFromAI(date).catch(() => buildFallbackPuzzle(date));
@@ -150,37 +154,41 @@ export async function getTodayPuzzle(): Promise<DailyPuzzle> {
 export async function getPuzzleByDate(date: string) {
   if (!hasDatabaseUrl) return null;
 
-  const result = await sql<{
-    id: string;
-    quest_date: string;
-    title: string;
-    story: string;
-    question: string;
-    options: unknown;
-    correct_answer_index: number;
-    knowledge_point: string;
-    hint: string;
-  }>`
-    select id, quest_date, title, story, question, options, correct_answer_index, knowledge_point, hint
-    from daily_quests
-    where quest_date = ${date}::date and status = 'published'
-    limit 1;
-  `;
+  try {
+    const result = await sql<{
+      id: string;
+      quest_date: string;
+      title: string;
+      story: string;
+      question: string;
+      options: unknown;
+      correct_answer_index: number;
+      knowledge_point: string;
+      hint: string;
+    }>`
+      select id, quest_date, title, story, question, options, correct_answer_index, knowledge_point, hint
+      from daily_quests
+      where quest_date = ${date}::date and status = 'published'
+      limit 1;
+    `;
 
-  const row = result.rows[0];
-  if (!row) return null;
+    const row = result.rows[0];
+    if (!row) return null;
 
-  return {
-    id: row.id,
-    date: row.quest_date,
-    title: row.title,
-    story: row.story,
-    question: row.question,
-    options: Array.isArray(row.options)
-      ? row.options.map((item, index) => ({ id: String(index), text: typeof item === "string" ? item : JSON.stringify(item) }))
-      : [],
-    correctAnswerIndex: row.correct_answer_index,
-    knowledgePoint: row.knowledge_point,
-    hint: row.hint,
-  } satisfies DailyPuzzle;
+    return {
+      id: row.id,
+      date: row.quest_date,
+      title: row.title,
+      story: row.story,
+      question: row.question,
+      options: Array.isArray(row.options)
+        ? row.options.map((item, index) => ({ id: String(index), text: typeof item === "string" ? item : JSON.stringify(item) }))
+        : [],
+      correctAnswerIndex: row.correct_answer_index,
+      knowledgePoint: row.knowledge_point,
+      hint: row.hint,
+    } satisfies DailyPuzzle;
+  } catch {
+    return null;
+  }
 }

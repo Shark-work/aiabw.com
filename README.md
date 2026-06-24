@@ -1,22 +1,23 @@
 # Daily AI Puzzle
 
-A Next.js 14-style daily AI puzzle app powered by DeepSeek and Vercel KV.
+A Next.js 14 daily AI puzzle app powered by DeepSeek and Supabase.
 
 ## Features
 
 - Daily puzzle homepage with frosted-glass UI and dark gradient background
-- `/api/daily` route generates a fresh puzzle and stores it in Vercel KV
+- `/api/daily` route returns today's published puzzle from Supabase
+- `/api/cron/generate` route generates a draft puzzle and stores it in `daily_quests`
 - `/api/answer` route validates user answers
-- Client-side feedback with motion-friendly state changes
+- Admin pages for topic management, weekly scheduling, and publishing today's draft
 
 ## Environment Variables
 
 ```bash
+DATABASE_URL=your_supabase_postgres_connection_string
 DEEPSEEK_API_KEY=your_deepseek_api_key
 DEEPSEEK_MODEL=deepseek-chat
-KV_REST_API_URL=your_vercel_kv_rest_url
-KV_REST_API_TOKEN=your_vercel_kv_rest_token
-KV_REST_API_READ_ONLY_TOKEN=your_vercel_kv_read_only_token
+ADMIN_EMAIL=your_admin_email
+NEXT_PUBLIC_SITE_URL=https://aiabw.com
 ```
 
 ## Run Locally
@@ -29,7 +30,13 @@ npm run dev
 ## API
 
 ### GET `/api/daily`
-Generates or returns today's puzzle.
+Returns today's published puzzle, or a friendly waiting message if none is published yet.
+
+### POST `/api/cron/generate`
+Generates today's draft puzzle based on the weekly schedule.
+
+### PUT `/api/admin/quests/publish`
+Publishes today's draft puzzle.
 
 ### POST `/api/answer`
 Body:
